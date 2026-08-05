@@ -1,0 +1,6 @@
+﻿document_id,file_name,title,maintenance,operations,production,ot_cybersecurity
+DOC-001,mining_business_continuity_plan.pdf,Mining Company Business Continuity Plan,direct,direct,direct,direct
+DOC-002,nist_sp_800_61r3.pdf,NIST SP 800-61r3 Incident Response,supporting,supporting,none,direct
+DOC-003,nist_sp_800_82r2.pdf,NIST SP 800-82r2 ICS Security,direct,direct,supporting,direct
+DOC-004,ics_incident_response.pdf,ICS Cybersecurity Incident Response,direct,direct,supporting,direct
+DOC-005,simatic_pcs7_manual.pdf,SIMATIC PCS 7 Engineering System Manual,direct,direct,supporting,supporting
