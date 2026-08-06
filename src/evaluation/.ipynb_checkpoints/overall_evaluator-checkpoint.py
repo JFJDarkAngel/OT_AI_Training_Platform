@@ -17,6 +17,14 @@ REQUIRED_STAKEHOLDERS = {
 }
 
 
+STAKEHOLDER_ORDER = (
+    "maintenance",
+    "operations",
+    "production",
+    "ot_cybersecurity",
+)
+
+
 OVERALL_INSTRUCTIONS = """
 You are the senior evaluator for an industrial OT incident-response
 training platform.
@@ -84,10 +92,18 @@ def validate_four_evaluations(
             "stakeholder evaluations."
         )
 
-    evaluation_map: dict[str, StakeholderEvaluation] = {}
+    evaluation_map: dict[
+        str,
+        StakeholderEvaluation,
+    ] = {}
 
     for evaluation in evaluations:
         stakeholder = evaluation.stakeholder
+
+        if stakeholder not in REQUIRED_STAKEHOLDERS:
+            raise ValueError(
+                f"Unexpected stakeholder evaluation: {stakeholder}"
+            )
 
         if stakeholder in evaluation_map:
             raise ValueError(
@@ -97,7 +113,8 @@ def validate_four_evaluations(
         evaluation_map[stakeholder] = evaluation
 
     missing_stakeholders = (
-        REQUIRED_STAKEHOLDERS - set(evaluation_map)
+        REQUIRED_STAKEHOLDERS
+        - set(evaluation_map)
     )
 
     if missing_stakeholders:
@@ -113,7 +130,7 @@ def calculate_overall_score(
     evaluations: list[StakeholderEvaluation],
 ) -> float:
     """
-    Calculate the arithmetic average of the four scores.
+    Calculate the arithmetic average of stakeholder scores.
     """
 
     if not evaluations:
@@ -126,7 +143,32 @@ def calculate_overall_score(
         for evaluation in evaluations
     ) / len(evaluations)
 
-    return round(average, 2)
+    return round(
+        average,
+        2,
+    )
+
+
+def format_list_items(
+    items: list[str],
+) -> str:
+    """
+    Convert a list of text items into prompt-ready bullets.
+    """
+
+    cleaned_items = [
+        str(item).strip()
+        for item in items
+        if str(item).strip()
+    ]
+
+    if not cleaned_items:
+        return "- None"
+
+    return "\n".join(
+        f"- {item}"
+        for item in cleaned_items
+    )
 
 
 def format_stakeholder_evaluation(
@@ -136,44 +178,24 @@ def format_stakeholder_evaluation(
     Convert one stakeholder evaluation into prompt-ready text.
     """
 
-    correct_actions = "\n".join(
-        f"- {item}"
-        for item in evaluation.correct_actions
-    ) or "- None"
-
-    missing_actions = "\n".join(
-        f"- {item}"
-        for item in evaluation.missing_actions
-    ) or "- None"
-
-    incorrect_actions = "\n".join(
-        f"- {item}"
-        for item in evaluation.incorrect_actions
-    ) or "- None"
-
-    recommendations = "\n".join(
-        f"- {item}"
-        for item in evaluation.recommendations
-    ) or "- None"
-
     return f"""
 STAKEHOLDER: {evaluation.stakeholder}
 SCORE: {evaluation.score}
 
 CORRECT ACTIONS:
-{correct_actions}
+{format_list_items(evaluation.correct_actions)}
 
 MISSING ACTIONS:
-{missing_actions}
+{format_list_items(evaluation.missing_actions)}
 
 INCORRECT ACTIONS:
-{incorrect_actions}
+{format_list_items(evaluation.incorrect_actions)}
 
 FEEDBACK:
-{evaluation.feedback}
+{evaluation.feedback.strip()}
 
 STAKEHOLDER RECOMMENDATIONS:
-{recommendations}
+{format_list_items(evaluation.recommendations)}
 """.strip()
 
 
@@ -193,8 +215,15 @@ def build_overall_input(
             "Scenario text cannot be empty."
         )
 
+    if not evaluations:
+        raise ValueError(
+            "Evaluations cannot be empty."
+        )
+
     formatted_evaluations = "\n\n".join(
-        format_stakeholder_evaluation(evaluation)
+        format_stakeholder_evaluation(
+            evaluation
+        )
         for evaluation in evaluations
     )
 
@@ -266,10 +295,8 @@ def generate_overall_evaluation(
     )
 
     ordered_evaluations = [
-        evaluation_map["maintenance"],
-        evaluation_map["operations"],
-        evaluation_map["production"],
-        evaluation_map["ot_cybersecurity"],
+        evaluation_map[stakeholder]
+        for stakeholder in STAKEHOLDER_ORDER
     ]
 
     calculated_score = calculate_overall_score(
@@ -307,8 +334,6 @@ def generate_overall_evaluation(
             "OpenAI did not return a valid overall evaluation."
         )
 
-    # Scores are replaced with deterministic values so the model
-    # cannot accidentally change them.
     return overall_evaluation.model_copy(
         update={
             "overall_score": calculated_score,

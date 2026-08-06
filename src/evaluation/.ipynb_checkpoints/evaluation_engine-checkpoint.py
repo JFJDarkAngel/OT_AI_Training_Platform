@@ -1,15 +1,24 @@
 from typing import Any
 
-from src.database.evaluation_repository import save_evaluation
-from src.evaluation.models import StakeholderEvaluation
-from src.evaluation.role_evaluator import evaluate_role_response
+from src.database.evaluation_repository import (
+    save_evaluation,
+)
+from src.evaluation.models import (
+    StakeholderEvaluation,
+)
+from src.evaluation.role_evaluator import (
+    evaluate_role_response,
+)
 from src.prompts.stakeholder_responsibilities import (
     normalize_stakeholder,
 )
-from src.rag.retriever import retrieve_relevant_chunks
+from src.rag.retriever import (
+    retrieve_relevant_chunks,
+)
 
 
 DEFAULT_TOP_K = 5
+MAX_TOP_K = 20
 
 
 def build_retrieval_query(
@@ -21,14 +30,41 @@ def build_retrieval_query(
     Build a stakeholder-specific query for the RAG retriever.
     """
 
+    cleaned_scenario_text = scenario_text.strip()
+    cleaned_stakeholder = normalize_stakeholder(
+        stakeholder
+    )
+    cleaned_user_response = user_response.strip()
+
+    if not cleaned_scenario_text:
+        raise ValueError(
+            "Scenario text cannot be empty."
+        )
+
+    if not cleaned_user_response:
+        raise ValueError(
+            "Stakeholder response cannot be empty."
+        )
+
     return (
-        "Industrial OT incident evaluation.\n\n"
-        f"Scenario:\n{scenario_text}\n\n"
-        f"Stakeholder:\n{stakeholder}\n\n"
-        f"Stakeholder response:\n{user_response}\n\n"
-        "Retrieve guidance relevant to evaluating the response's "
-        "safety, correctness, completeness, role responsibilities, "
-        "coordination, containment, recovery, and restart readiness."
+        "Industrial OT incident-response evaluation.\n\n"
+        "Incident scenario:\n"
+        f"{cleaned_scenario_text}\n\n"
+        "Stakeholder role:\n"
+        f"{cleaned_stakeholder}\n\n"
+        "Stakeholder response:\n"
+        f"{cleaned_user_response}\n\n"
+        "Retrieve authoritative guidance relevant to:\n"
+        "- safety,\n"
+        "- technical correctness,\n"
+        "- response completeness,\n"
+        "- stakeholder responsibilities,\n"
+        "- cross-team coordination,\n"
+        "- cyber containment,\n"
+        "- operational recovery,\n"
+        "- evidence preservation,\n"
+        "- authorization,\n"
+        "- and controlled restart readiness."
     )
 
 
@@ -42,7 +78,7 @@ def evaluate_stakeholder_response(
     save_result: bool = True,
 ) -> StakeholderEvaluation:
     """
-    Run the complete RAG + OpenAI evaluation pipeline
+    Run the complete RAG and OpenAI evaluation pipeline
     for one stakeholder response.
     """
 
@@ -71,6 +107,11 @@ def evaluate_stakeholder_response(
     if top_k <= 0:
         raise ValueError(
             "top_k must be greater than zero."
+        )
+
+    if top_k > MAX_TOP_K:
+        raise ValueError(
+            f"top_k cannot exceed {MAX_TOP_K}."
         )
 
     retrieval_query = build_retrieval_query(
